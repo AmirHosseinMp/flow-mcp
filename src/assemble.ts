@@ -10,6 +10,16 @@ const run = promisify(execFile);
 const FFMPEG = process.env.FLOW_MCP_FFMPEG ?? "ffmpeg";
 const FFPROBE = process.env.FLOW_MCP_FFPROBE ?? "ffprobe";
 
+// Runs ffmpeg/ffprobe and says how to install them when they are missing, instead of a bare "spawn ffmpeg ENOENT".
+export async function runMedia(bin: string, args: string[]): Promise<{ stdout: string }> {
+  try {
+    return await run(bin, args);
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === "ENOENT") throw new Error(`${basename(bin)} is not installed (${FFMPEG_HINT}).`);
+    throw err;
+  }
+}
+
 export interface AssembleOptions {
   dir: string;
   clips?: string[];
@@ -66,8 +76,8 @@ function defaultClips(dir: string): string[] {
 
 // Pulls the spoken track out of a generated clip so Flow's voices can be used as narration.
 export async function extractAudio(video: string, target: string): Promise<{ output: string; duration: number }> {
-  await run(FFMPEG, ["-y", "-i", video, "-vn", "-af", "highpass=f=80,acompressor=threshold=-18dB:ratio=3:attack=5:release=120,loudnorm=I=-16:TP=-1.5:LRA=11", "-ar", "48000", "-ac", "2", target]);
-  const { stdout } = await run(FFPROBE, ["-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", target]);
+  await runMedia(FFMPEG, ["-y", "-i", video, "-vn", "-af", "highpass=f=80,acompressor=threshold=-18dB:ratio=3:attack=5:release=120,loudnorm=I=-16:TP=-1.5:LRA=11", "-ar", "48000", "-ac", "2", target]);
+  const { stdout } = await runMedia(FFPROBE,["-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", target]);
   return { output: target, duration: Number(stdout.trim()) };
 }
 
@@ -119,9 +129,12 @@ export async function speakLocally(text: string, voice: string, target: string):
   } else {
     await run(SAY, ["-v", voice, "-r", "168", "-o", raw, text]);
   }
-  await run(FFMPEG, ["-y", "-i", raw, "-af", "highpass=f=80,acompressor=threshold=-18dB:ratio=3:attack=5:release=120,loudnorm=I=-16:TP=-1.5:LRA=11", "-ar", "48000", "-ac", "2", target]);
-  rmSync(raw, { force: true });
-  const { stdout } = await run(FFPROBE, ["-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", target]);
+  try {
+    await runMedia(FFMPEG, ["-y", "-i", raw, "-af", "highpass=f=80,acompressor=threshold=-18dB:ratio=3:attack=5:release=120,loudnorm=I=-16:TP=-1.5:LRA=11", "-ar", "48000", "-ac", "2", target]);
+  } finally {
+    rmSync(raw, { force: true });
+  }
+  const { stdout } = await runMedia(FFPROBE,["-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", target]);
   return { output: target, duration: Number(stdout.trim()) };
 }
 
