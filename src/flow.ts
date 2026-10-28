@@ -46,6 +46,10 @@ async function dismissOverlays(page: Page): Promise<void> {
   await page.keyboard.press("Escape");
   const closePanel = page.getByRole("button", { name: "Close account panel" });
   if (await closePanel.isVisible().catch(() => false)) await closePanel.click({ timeout: 5000 }).catch(() => {});
+  // Google's cookie notice is pinned over the bottom of the page in a fresh profile and sits on top of the composer
+  // ("glue-cookie-notification-bar intercepts pointer events"); its own Hide button just closes it.
+  const cookies = page.locator(".glue-cookie-notification-bar").getByRole("button", { name: "Hide" });
+  if (await cookies.isVisible().catch(() => false)) await cookies.click({ timeout: 5000 }).catch(() => {});
   await clearBackdrops(page);
 }
 
@@ -775,6 +779,7 @@ export async function runGeneration(job: Job): Promise<string[]> {
   const s = job.params;
 
   await ensureProjectGrid(page);
+  await closeAgentPanel(page);
   const agent = page.getByRole("button", { name: "Agent", exact: true });
   if ((await agent.getAttribute("aria-pressed")) === "true") await agent.click();
   const clear = page.getByRole("button", { name: "Clear prompt" });
@@ -1351,13 +1356,19 @@ async function setAgentSettings(page: Page, confirm: "Always" | "Never", imageAs
   }
 }
 
-// "Reuse prompt" on an agent-made tile opens the agent's session panel, which hides the normal composer.
-async function closeAgentSession(page: Page): Promise<void> {
+// A project can also open with the panel already showing (Flow remembers an agent session), so every job that needs
+// the plain composer closes it first.
+async function closeAgentPanel(page: Page): Promise<void> {
   const panel = page.getByRole("button", { name: "Start new session" });
   if (await panel.isVisible().catch(() => false)) {
     await page.getByRole("button", { name: "Close", exact: true }).click();
     await pause(page, 1000);
   }
+}
+
+// "Reuse prompt" on an agent-made tile opens the agent's session panel, which hides the normal composer.
+async function closeAgentSession(page: Page): Promise<void> {
+  await closeAgentPanel(page);
   const clear = page.getByRole("button", { name: "Clear prompt" });
   if (await clear.isVisible().catch(() => false)) await clear.click();
   else {
