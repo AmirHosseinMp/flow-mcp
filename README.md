@@ -65,6 +65,18 @@ everyday browser.
 
 ## Connect it to Claude, Codex or Antigravity
 
+Every example below says `/absolute/path/to/flow-mcp/dist/index.js`. That is a placeholder: replace it with
+the real path on your computer, or the server stops the moment it starts and your app reports "Connection
+closed" or "failed to connect". To print the real path, run this inside the `flow-mcp` folder:
+
+```bash
+node -p "JSON.stringify(require('path').resolve('dist/index.js'))"
+```
+
+It prints the path in quotes, already escaped for JSON and TOML files (on Windows the backslashes come out
+doubled, which is what those files need). For the `claude mcp add` and `codex mcp add` commands, paste it
+with the quotes; forward slashes work on Windows too.
+
 **Claude Code**
 
 ```bash
@@ -72,6 +84,7 @@ claude mcp add --scope user flow -- node /absolute/path/to/flow-mcp/dist/index.j
 ```
 
 `--scope user` makes it available in every folder; the default (`local`) only works in the folder you ran it from.
+Check it with `claude mcp get flow`: it should say "Connected".
 
 **Claude Desktop**: add to `claude_desktop_config.json` (Mac: `~/Library/Application Support/Claude/`, Windows:
 `%APPDATA%\Claude\`). On Windows, write the path with doubled backslashes, like

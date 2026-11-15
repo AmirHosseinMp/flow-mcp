@@ -141,18 +141,26 @@ Skip this if you'll only use Flow Studio.
 
 1. In the Claude app: **Settings** → **Developer** → **Edit Config**. It shows you a file called
    `claude_desktop_config.json`. Open it in a text editor.
-2. Paste this in, using the full path to your `flow-mcp` folder. If the file already has an
-   `"mcpServers"` section, add the `"flow"` part inside it rather than making a second one.
+2. Find the full path to the tool. In the `flow-mcp` folder, run:
+
+   ```bash
+   node -p "JSON.stringify(require('path').resolve('dist/index.js'))"
+   ```
+
+   It prints something like `"/Users/yourname/flow-mcp/dist/index.js"` (on Windows
+   `"C:\\Users\\yourname\\flow-mcp\\dist\\index.js"`, with double backslashes, as the file needs).
+3. Paste this in, then replace the example path, quotes included, with the one you just printed. If the
+   file already has an `"mcpServers"` section, add the `"flow"` part inside it rather than making a second one.
 
    ```json
    { "mcpServers": { "flow": { "command": "node", "args": ["/Users/yourname/flow-mcp/dist/index.js"] } } }
    ```
 
-   On Windows the path looks like `"C:\\Users\\yourname\\flow-mcp\\dist\\index.js"`, with double
-   backslashes.
-3. Save, then **quit the Claude app completely** (Cmd+Q on a Mac; on Windows right-click its tray icon →
+   If the example path stays in, the tool can't start, and the app reports that the flow server failed
+   to connect.
+4. Save, then **quit the Claude app completely** (Cmd+Q on a Mac; on Windows right-click its tray icon →
    Quit) and open it again. Just closing the window isn't enough.
-4. Ask: *"Check my Flow session."*
+5. Ask: *"Check my Flow session."*
 
 To connect Claude Code, Codex or Antigravity by hand instead, see the
 [README](README.md#connect-it-to-claude-codex-or-antigravity).

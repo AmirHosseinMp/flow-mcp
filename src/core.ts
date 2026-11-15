@@ -377,7 +377,8 @@ export class LocalCore implements Core {
       const cast = (scene.reference_images ?? [])
         .filter((r) => r.startsWith("asset:"))
         .map((r) => r.slice(6).trim())
-        .filter((n) => characterLook(n) !== undefined || /^[\w .'-]{1,60}$/.test(n));
+        // Local patch (ashkan reel): generated media titles ("<project>-scene-NN-vN") are layout/style refs, not characters.
+        .filter((n) => characterLook(n) !== undefined || (/^[\w .'-]{1,60}$/.test(n) && !/-scene-\d+/i.test(n)));
       const lock = cast.length
         ? ` CHARACTER LOCK — ${cast.join(" and ")} must match the reference image exactly, as if copying it: same head shape and size, same face, same eyes, same hair, same skin, same build and proportions, same clothing items in the same colours, same hands, and the same rendering style and level of realism as the reference. Never redesign, restyle, re-proportion, re-age or re-colour them, and never swap an item for a similar one.${cast
             .map((n) => (characterLook(n) ? ` ${n} is exactly: ${characterLook(n)}.` : ""))
