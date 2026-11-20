@@ -255,11 +255,15 @@ export async function freshMedia(page: Page, before: string[], kind?: MediaKind)
         busy:
           /\d+%/.test((t as HTMLElement).innerText) ||
           (!!t.querySelector("flow-video-tile") && !t.querySelector('img[alt="Generated video thumbnail"], video')),
+        // A failed generation is a flow-error-tile INSIDE flow-image-tile, with no "NN%": it looked finished, the job
+        // picked it and died on "tile menu has no Download item. It offered: Delete" (2026-11-20: a policy-filter
+        // failure and an "unusual activity" failure, while the other variant of the same job was fine).
+        failed: !!t.querySelector("flow-error-tile"),
       }));
     },
     TILE_ID_JS,
   );
-  const ours = tiles.filter((t) => t.id && !before.includes(t.id) && !t.label.startsWith("fm-") && !t.busy && (!kind || t.kind === kind));
+  const ours = tiles.filter((t) => t.id && !before.includes(t.id) && !t.label.startsWith("fm-") && !t.busy && !t.failed && (!kind || t.kind === kind));
   return [...new Set(ours.map((t) => t.id!))];
 }
 
@@ -296,7 +300,13 @@ async function waitForNewMedia(page: Page, before: string[], count: number, time
       if (retried) continue;
     }
     if (fresh.length) return fresh;
-    throw new Error(`Flow failed this generation ${failures} time(s) ("Sorry, this image/video failed to generate"). Nothing was charged. Try again later or reword the prompt.`);
+    // Quote Flow's own reason: "might violate our policies" needs a reworded prompt, "unusual activity" needs a pause.
+    const reason = await page
+      .locator("flow-grid-tile-container flow-error-tile .error-message-text")
+      .first()
+      .innerText({ timeout: 2000 })
+      .catch(() => "this image/video failed to generate");
+    throw new Error(`Flow failed this generation ${failures} time(s): "${reason.trim()}". Nothing was charged. ${/polic/i.test(reason) ? "Reword the prompt." : /unusual activity/i.test(reason) ? "Wait a few minutes before the next job." : "Try again later or reword the prompt."}`);
   }
   throw new Error(`Timed out after ${Math.round(timeoutMs / 1000)}s waiting for Flow to finish.`);
 }
@@ -780,7 +790,7 @@ export async function runGeneration(job: Job): Promise<string[]> {
 
   await ensureProjectGrid(page);
   await closeAgentPanel(page);
-  const agent = page.getByRole("button", { name: "Agent", exact: true });
+  const agent = page.getByRole("button", { name: /^(Flow )?Agent$/ });
   if ((await agent.getAttribute("aria-pressed")) === "true") await agent.click();
   const clear = page.getByRole("button", { name: "Clear prompt" });
   if (await clear.isVisible().catch(() => false)) await clear.click();
@@ -1314,7 +1324,7 @@ export async function runEdit(job: Job): Promise<string[]> {
 // mode on then breaks the NEXT job, which expects the plain composer - a free character build failed that way. So this
 // confirms the toggle actually landed rather than assuming the click worked.
 async function setAgentMode(page: Page, on: boolean): Promise<void> {
-  const agent = page.getByRole("button", { name: "Agent", exact: true });
+  const agent = page.getByRole("button", { name: /^(Flow )?Agent$/ });
   // Playwright says why a click did not land ("<div ...> intercepts pointer events", "element is not visible"); keep
   // that, so a failure names what was in the way instead of guessing.
   let why = "";

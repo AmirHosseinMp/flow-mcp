@@ -510,3 +510,14 @@ The preview tool could not read the project while it lived in ~/Desktop; check t
 - CAPTIONS WORKFLOW (the user's rule, 2026-10-18): transcribe first, show the words with likely mishearings fixed,
   get the user's OK, THEN make the video once. The playbook and the flow_captions description say so too.
 
+- AGENT BUTTON RENAMED (2026-11-20): Flow's composer toggle is now "Flow Agent" (aria-pressed), not "Agent", so EVERY
+  job (images, characters) died with "waiting for getByRole('button', { name: 'Agent', exact: true })". Both lookups
+  now use name /^(Flow )?Agent$/. Upstream (GTAI-1 main b64538a, 2026-11-14) still has the old name - checked.
+- FAILED TILES TAKEN AS RESULTS (2026-11-20, live): a failed generation is `flow-image-tile > flow-error-tile` with no
+  "NN%", so freshMedia took it as a finished image and the job died on "tile menu has no Download item. It offered:
+  Delete" - even when the OTHER variant of the same job was fine. Two real reasons seen in one session:
+  "This generation might violate our policies..." (a prompt) and "We noticed some unusual activity..." (bot check on a
+  2-variant job). freshMedia now skips error tiles; a job that still fails quotes Flow's `.error-message-text`.
+- RELOADING NEW CODE (2026-11-20, Windows): an older session's flow-mcp kept port 8787, so after /mcp Reconnect the new
+  process came up as a CLIENT of the old code. Stop the stale owner (netstat -ano | findstr :8787) only with the user's
+  OK, then reconnect again.
